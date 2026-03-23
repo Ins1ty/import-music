@@ -14,10 +14,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         onClick={onClick}
         className={cn(
-          "relative inline-flex h-10 items-center justify-center overflow-hidden rounded-md px-6 font-medium text-sm transition-all duration-300",
+          "relative inline-flex h-10 items-center justify-center overflow-hidden rounded-lg px-6 font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50",
           variant === "primary" 
-            ? "bg-white text-black hover:bg-zinc-200" 
-            : "border border-zinc-700 bg-transparent text-white hover:bg-zinc-800",
+            ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
+            : "bg-white hover:bg-slate-100 text-slate-800 border-2 border-slate-300",
           className,
         )}
         {...props}

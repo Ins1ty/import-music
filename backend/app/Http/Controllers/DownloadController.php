@@ -94,6 +94,68 @@ class DownloadController extends Controller
         }
     }
 
+    public function downloadSelected(Request $request)
+    {
+        set_time_limit(0);
+        
+        $token = $request->input('token');
+        $tracksJson = $request->input('tracks');
+        $playlistTitle = $request->input('playlistTitle', 'playlist');
+
+        if (!$token || !$tracksJson) {
+            return response()->json(['error' => 'Token and tracks are required'], 400);
+        }
+
+        try {
+            $tracks = json_decode($tracksJson, true);
+            if (!is_array($tracks) || empty($tracks)) {
+                return response()->json(['error' => 'No tracks to download'], 400);
+            }
+
+            $trackCount = count($tracks);
+            $safeTitle = $this->sanitizeFileName($playlistTitle);
+            $zipFileName = "{$safeTitle} ({$trackCount} tracks).zip";
+            
+            return response()->stream(function() use ($token, $tracks, $zipFileName) {
+                $zip = new ZipStream(
+                    operationMode: OperationMode::NORMAL,
+                    outputName: $zipFileName,
+                    sendHttpHeaders: true
+                );
+
+                foreach ($tracks as $idx => $track) {
+                    $trackId = $track['trackId'] ?? $track['id'] ?? 0;
+                    if (!$trackId) continue;
+
+                    $audioData = $this->downloadTrack($token, $trackId);
+                    
+                    if ($audioData) {
+                        $title = $track['title'] ?? 'Unknown';
+                        $artist = $track['artist'] ?? 'Unknown';
+                        $fileName = sprintf(
+                            '%02d - %s.mp3',
+                            $idx + 1,
+                            $this->sanitizeFileName($artist . ' - ' . $title)
+                        );
+                        $zip->addFile($fileName, $audioData);
+                    }
+                }
+
+                $zip->finish();
+                flush();
+            }, 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"',
+                'Access-Control-Allow-Origin' => '*',
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Download selected error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     private function fetchPlaylist(string $token, string $uuid): ?array
     {
         $url = "https://api.music.yandex.net/playlist/{$uuid}";

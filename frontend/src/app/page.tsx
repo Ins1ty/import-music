@@ -2,23 +2,30 @@
 
 import { useState } from 'react'
 import { usePlaylistStore } from '@/store/playlistStore'
+import { useTheme } from '@/components/theme-provider'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Boxes } from '@/components/ui/background-boxes'
-import { Music, Loader2, X, AlertCircle, Download, HardDrive, Link } from 'lucide-react'
+import { Music, Loader2, X, AlertCircle, Download, HardDrive, Link, CheckSquare, Square } from 'lucide-react'
 
 export default function Home() {
   const { 
     tracks, 
+    playlistTitle,
+    selectedTracks,
     loading, 
     downloading,
     error, 
     setTracks, 
+    toggleTrack,
+    selectAll,
+    unselectAll,
     setLoading, 
     setError,
     setDownloading,
     reset 
   } = usePlaylistStore()
+  const { theme } = useTheme()
   
   const [token] = useState('y0__xDnpeqLAhje-AYgwIDy6xY7k7c1lRcL71AES3yo_cBhvMx2Nw')
   const [playlistUrl, setPlaylistUrl] = useState('')
@@ -109,7 +116,8 @@ export default function Home() {
       if (foundTracks.length === 0) {
         setError('No tracks found. The playlist might be empty.')
       } else {
-        setTracks(foundTracks)
+        const playlistTitle = playlistData.result.title || 'playlist'
+        setTracks(foundTracks, playlistTitle)
       }
     } catch (err) {
       setError('Failed to fetch playlist. Make sure Laravel backend is running on port 8000.')
@@ -118,17 +126,19 @@ export default function Home() {
   }
 
   const handleDownload = () => {
-    if (!playlistUrl.trim() || tracks.length === 0) {
-      setError('Please import a playlist first')
+    if (selectedTracks.size === 0) {
+      setError('Please select at least one track to download')
       return
     }
 
     setDownloading(true)
     setError(null)
 
+    const selectedTracksArray = tracks.filter((_, index) => selectedTracks.has(index))
+
     const form = document.createElement('form')
     form.method = 'POST'
-    form.action = 'http://localhost:8000/api/download-playlist'
+    form.action = 'http://localhost:8000/api/download-selected'
     form.style.display = 'none'
 
     const tokenInput = document.createElement('input')
@@ -137,11 +147,17 @@ export default function Home() {
     tokenInput.value = token
     form.appendChild(tokenInput)
 
-    const urlInput = document.createElement('input')
-    urlInput.type = 'hidden'
-    urlInput.name = 'playlistUrl'
-    urlInput.value = playlistUrl
-    form.appendChild(urlInput)
+    const tracksInput = document.createElement('input')
+    tracksInput.type = 'hidden'
+    tracksInput.name = 'tracks'
+    tracksInput.value = JSON.stringify(selectedTracksArray)
+    form.appendChild(tracksInput)
+
+    const titleInput = document.createElement('input')
+    titleInput.type = 'hidden'
+    titleInput.name = 'playlistTitle'
+    titleInput.value = playlistTitle
+    form.appendChild(titleInput)
 
     document.body.appendChild(form)
     form.submit()
@@ -149,7 +165,7 @@ export default function Home() {
     setTimeout(() => {
       document.body.removeChild(form)
       setDownloading(false)
-    }, 10000)
+    }, 30000)
   }
 
   const handleClear = () => {
@@ -157,10 +173,21 @@ export default function Home() {
     reset()
   }
 
+  const handleSelectAllToggle = () => {
+    if (selectedTracks.size === tracks.length) {
+      unselectAll()
+    } else {
+      selectAll()
+    }
+  }
+
+  const isDark = theme === 'dark'
+  const allSelected = selectedTracks.size === tracks.length && tracks.length > 0
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-black">
+    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: isDark ? '#020617' : '#f1f5f9' }}>
       <div className="absolute inset-0 z-0">
-        <Boxes className="opacity-30" />
+        <Boxes />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-16 max-w-4xl">
@@ -169,27 +196,45 @@ export default function Home() {
             <div className="p-3 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600">
               <Music className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-white to-zinc-400 bg-clip-text text-transparent">
+            <h1 className={`text-5xl font-bold bg-gradient-to-r ${isDark ? 'from-white via-blue-200 to-blue-400' : 'from-violet-700 via-violet-600 to-blue-600'} bg-clip-text text-transparent`}>
               Import Music
             </h1>
           </div>
-          <p className="text-zinc-400 text-lg">Download Yandex Music playlists to your computer</p>
+          <p className={`text-lg ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+            Download Yandex Music playlists to your computer
+          </p>
         </div>
 
         <div className="mb-8">
-          <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-6 max-w-2xl mx-auto">
+          <div 
+            className="rounded-2xl p-6 max-w-2xl mx-auto shadow-xl"
+            style={{ 
+              backgroundColor: isDark ? '#1e293b' : '#ffffff',
+              borderWidth: '2px',
+              borderColor: isDark ? '#334155' : '#e2e8f0'
+            }}
+          >
             <div className="space-y-4">
               <div>
-                <label className="text-zinc-400 text-sm block mb-2">Playlist URL:</label>
+                <label 
+                  className={`text-sm block mb-2 font-semibold`}
+                  style={{ color: isDark ? '#e2e8f0' : '#334155' }}
+                >
+                  Playlist URL:
+                </label>
                 <Input
                   type="url"
                   value={playlistUrl}
                   onChange={(e) => setPlaylistUrl(e.target.value)}
-                  placeholder="https://music.yandex.ru/playlists/55e9d094-a315-7831-b923-52c2a7555c45"
-                  className="h-12 bg-zinc-950 border-zinc-800 text-white placeholder-zinc-500"
+                  placeholder="https://music.yandex.ru/playlists/..."
+                  style={{
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    borderColor: isDark ? '#475569' : '#cbd5e1',
+                    color: isDark ? '#f8fafc' : '#0f172a',
+                  }}
                 />
               </div>
-              <p className="text-zinc-500 text-sm">
+              <p className={isDark ? 'text-slate-400' : 'text-slate-500'} style={{ fontSize: '14px' }}>
                 Copy the playlist link from Yandex Music and paste it here
               </p>
             </div>
@@ -213,35 +258,80 @@ export default function Home() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 max-w-2xl mx-auto backdrop-blur-sm flex items-start gap-3">
+          <div 
+            className="mb-6 p-4 rounded-xl max-w-2xl mx-auto flex items-start gap-3"
+            style={{ 
+              backgroundColor: isDark ? 'rgba(127, 29, 29, 0.3)' : '#fef2f2',
+              borderWidth: '2px',
+              borderColor: isDark ? '#b91c1c' : '#fecaca',
+              color: isDark ? '#fca5a5' : '#b91c1c'
+            }}
+          >
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {tracks.length > 0 && (
-          <div className="rounded-2xl bg-zinc-900/80 border border-zinc-800 overflow-hidden max-w-2xl mx-auto backdrop-blur-sm">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-800/50">
-              <div className="flex items-center gap-2">
-                <Music className="w-5 h-5 text-blue-400" />
-                <span className="font-medium text-white">{tracks.length} tracks found</span>
+          <div 
+            className="rounded-2xl overflow-hidden max-w-2xl mx-auto shadow-xl"
+            style={{ 
+              backgroundColor: isDark ? '#1e293b' : '#ffffff',
+              borderWidth: '2px',
+              borderColor: isDark ? '#334155' : '#e2e8f0'
+            }}
+          >
+            <div 
+              className="p-4 flex justify-between items-center"
+              style={{ 
+                backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                borderBottomWidth: '2px',
+                borderColor: isDark ? '#334155' : '#e2e8f0'
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSelectAllToggle}
+                  className="p-1"
+                  style={{ color: isDark ? '#60a5fa' : '#3b82f6' }}
+                >
+                  {allSelected ? (
+                    <CheckSquare className="w-5 h-5" />
+                  ) : (
+                    <Square className="w-5 h-5" />
+                  )}
+                </button>
+                <Music className="w-5 h-5" style={{ color: isDark ? '#60a5fa' : '#3b82f6' }} />
+                <span className="font-semibold" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                  {selectedTracks.size} of {tracks.length} selected
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {downloading && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-400 mr-2">
+                  <div className="flex items-center gap-2 text-sm mr-2" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Downloading...</span>
                   </div>
                 )}
-                <Button onClick={handleDownload} disabled={downloading} className="bg-green-600 hover:bg-green-700">
+                <Button 
+                  onClick={handleDownload} 
+                  disabled={downloading || selectedTracks.size === 0}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
                   <Download className="w-4 h-4 mr-2" />
-                  Download ZIP
+                  Download ZIP ({selectedTracks.size})
                 </Button>
                 <button
                   onClick={handleClear}
-                  className="p-2 rounded-lg hover:bg-zinc-700 transition-colors"
+                  className="p-2 rounded-lg"
+                  style={{ 
+                    backgroundColor: 'transparent',
+                    color: isDark ? '#94a3b8' : '#64748b'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDark ? '#334155' : '#e2e8f0'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <X className="w-4 h-4 text-zinc-400" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -249,13 +339,44 @@ export default function Home() {
               {tracks.map((track, index) => (
                 <div
                   key={index}
-                  className="px-4 py-3 border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/30 transition-colors"
+                  className="px-4 py-3 flex items-center gap-3"
+                  style={{ 
+                    borderBottomWidth: index < tracks.length - 1 ? '1px' : '0',
+                    borderColor: isDark ? '#1e293b' : '#f1f5f9',
+                    backgroundColor: selectedTracks.has(index) 
+                      ? (isDark ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.05)')
+                      : 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!selectedTracks.has(index)) {
+                      e.currentTarget.style.backgroundColor = isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!selectedTracks.has(index)) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }
+                  }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-zinc-500 text-sm w-6">{index + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate text-white">{track.title}</div>
-                      <div className="text-sm text-zinc-400 truncate">{track.artist}</div>
+                  <button
+                    onClick={() => toggleTrack(index)}
+                    style={{ color: isDark ? '#60a5fa' : '#3b82f6' }}
+                  >
+                    {selectedTracks.has(index) ? (
+                      <CheckSquare className="w-5 h-5" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                  </button>
+                  <span className="text-sm w-6" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                      {track.title}
+                    </div>
+                    <div className="text-sm truncate" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+                      {track.artist}
                     </div>
                   </div>
                 </div>
@@ -265,7 +386,7 @@ export default function Home() {
         )}
 
         {!loading && tracks.length === 0 && !error && (
-          <div className="text-center text-zinc-500 py-12">
+          <div className="text-center py-12" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>
             <HardDrive className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>Paste a Yandex Music playlist URL above to get started</p>
           </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { cn } from "@/lib/utils"
+import { useTheme } from "@/components/theme-provider"
 
 const colors = [
   "#93c5fd",
@@ -16,6 +16,9 @@ const colors = [
 ]
 
 export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+
   const rows = new Array(150).fill(1)
   const cols = new Array(100).fill(1)
   
@@ -27,30 +30,24 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
     <div
       style={{
         transform: `translate(-40%,-60%) skewX(-48deg) skewY(14deg) scale(0.675) rotate(0deg) translateZ(0)`,
+        backgroundColor: isDark ? '#020617' : '#f1f5f9',
       }}
-      className={cn(
-        "absolute -top-1/4 left-1/4 z-0 flex h-full w-full -translate-x-1/2 -translate-y-1/2 p-4",
-        className,
-      )}
+      className={className}
       {...rest}
     >
       {rows.map((_, i) => (
         <div
           key={`row` + i}
-          className="relative h-8 w-16 border-l border-slate-700"
+          className="relative h-8 w-16"
+          style={{ borderLeftColor: isDark ? '#1e293b' : '#e2e8f0' }}
         >
           {cols.map((_, j) => (
             <div
               key={`col` + j}
-              className="relative h-8 w-16 border-t border-r border-slate-700 transition-colors duration-0 hover:bg-opacity-50"
+              className="relative h-8 w-16"
               style={{
-                transition: 'background-color 0s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = getRandomColor(i, j)
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
+                borderTopColor: isDark ? '#1e293b' : '#e2e8f0',
+                borderRightColor: isDark ? '#1e293b' : '#e2e8f0',
               }}
             >
               {j % 2 === 0 && i % 2 === 0 ? (
@@ -60,7 +57,8 @@ export const BoxesCore = ({ className, ...rest }: { className?: string }) => {
                   viewBox="0 0 24 24"
                   strokeWidth="1.5"
                   stroke="currentColor"
-                  className="pointer-events-none absolute -top-[14px] -left-[22px] h-6 w-10 stroke-[1px] text-slate-700"
+                  className="pointer-events-none absolute -top-[14px] -left-[22px] h-6 w-10 stroke-[1px]"
+                  style={{ color: isDark ? '#1e293b' : '#e2e8f0' }}
                 >
                   <path
                     strokeLinecap="round"
