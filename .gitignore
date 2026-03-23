@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+.next/
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Laravel
+storage/*.key
+storage/logs/*
+!storage/logs/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+test*.php
+test*.json
+api_test.json
+composer-setup.php
+composer.phar
+
+# Composer
+backend/vendor/
+backend/composer.lock
+
+# ZIP files
+*.zip
+
+# Test downloads
+test.zip
+test_track.mp3
