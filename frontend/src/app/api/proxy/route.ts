@@ -7,35 +7,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL is required' }, { status: 400 });
   }
 
-  const allowedHosts = ['api.music.yandex.net', 'storage.mds.yandex.net'];
-  
-  try {
-    const parsedUrl = new URL(url);
-    if (!allowedHosts.includes(parsedUrl.hostname)) {
-      return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
-    }
-  } catch {
-    return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
+  if (!url.startsWith('https://api.music.yandex.net')) {
+    return NextResponse.json({ error: 'Only Yandex Music API requests are allowed' }, { status: 403 });
   }
 
   try {
+    const authHeader = request.headers.get('Authorization');
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    };
+    
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://music.yandex.ru/',
-        'Accept': 'application/json',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
-        'Origin': 'https://music.yandex.ru',
-      },
+      headers,
       cache: 'no-store',
     });
 
-    const data = await response.arrayBuffer();
+    const data = await response.text();
     
     return new NextResponse(data, {
       status: response.status,
       headers: {
-        'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
+        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',

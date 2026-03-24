@@ -1,0 +1,6 @@
+{
+  "框架": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install"
+}

@@ -57,27 +57,17 @@ export default function Home() {
         }
       })
 
-      const text = await userResponse.text()
-      
       if (!userResponse.ok) {
-        setError(`Failed to fetch playlist: ${text.substring(0, 100)}`)
+        const errData = await userResponse.json().catch(() => ({}))
+        setError(`Failed to fetch playlist: ${errData.error || userResponse.status}`)
         setLoading(false)
         return
       }
 
-      let playlistData
-      try {
-        playlistData = JSON.parse(text)
-      } catch (e) {
-        setError(`Invalid JSON: ${text.substring(0, 200)}`)
-        setLoading(false)
-        return
-      }
-      
-      console.log('Playlist response:', playlistData)
+      const playlistData = await userResponse.json()
       
       if (!playlistData.result || !playlistData.result.tracks) {
-        setError(`Playlist not found or empty. Response: ${JSON.stringify(playlistData).substring(0, 200)}`)
+        setError('Playlist not found')
         setLoading(false)
         return
       }
@@ -161,24 +151,44 @@ export default function Home() {
 
       const data = await response.json()
       
-      if (data.zip && data.filename) {
-        const binaryString = atob(data.zip)
-        const bytes = new Uint8Array(binaryString.length)
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i)
-        }
-        const blob = new Blob([bytes], { type: 'application/zip' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = data.filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else {
-        throw new Error('No zip data received')
+      if (!data.downloads || data.downloads.length === 0) {
+        throw new Error('No tracks available for download')
       }
+
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+
+      for (const download of data.downloads) {
+        try {
+          const audioResponse = await fetch(download.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://music.yandex.ru/',
+            },
+          })
+          
+          if (audioResponse.ok) {
+            const arrayBuffer = await audioResponse.arrayBuffer()
+            zip.file(download.filename, arrayBuffer)
+          }
+        } catch (e) {
+          console.error('Failed to download:', download.filename, e)
+        }
+      }
+
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob', 
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      })
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${data.playlistTitle || 'playlist'}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed')
     }
