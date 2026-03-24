@@ -671,9 +671,6 @@ export default function Home() {
                               <Square className="w-5 h-5" />
                             )}
                           </button>
-                          <span className="text-sm w-6" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>
-                            {index + 1}
-                          </span>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium truncate" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
                               {track.title}
