@@ -32,7 +32,7 @@ export default function Home() {
 
   const handleTokenImport = async () => {
     if (!playlistUrl.trim()) {
-      setError('Please enter playlist URL')
+      setError('Please enter playlist or album URL')
       return
     }
 
@@ -41,83 +41,151 @@ export default function Home() {
 
     try {
       const playlistIdMatch = playlistUrl.match(/\/playlists\/([a-zA-Z0-9-]+)/)
+      const albumIdMatch = playlistUrl.match(/\/album\/(\d+)/)
       
-      if (!playlistIdMatch) {
-        setError('Invalid playlist URL. Use format: https://music.yandex.ru/playlists/...')
-        setLoading(false)
-        return
-      }
+      if (playlistIdMatch) {
+        const playlistUuid = playlistIdMatch[1]
+        const apiUrl = `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/playlist/${playlistUuid}`)}`
 
-      const playlistUuid = playlistIdMatch[1]
-      const apiUrl = `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/playlist/${playlistUuid}`)}`
+        const userResponse = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `OAuth ${token}`,
+          }
+        })
 
-      const userResponse = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `OAuth ${token}`,
+        if (!userResponse.ok) {
+          const errData = await userResponse.json().catch(() => ({}))
+          setError(`Failed to fetch playlist: ${errData.error || userResponse.status}`)
+          setLoading(false)
+          return
         }
-      })
 
-      if (!userResponse.ok) {
-        const errData = await userResponse.json().catch(() => ({}))
-        setError(`Failed to fetch playlist: ${errData.error || userResponse.status}`)
-        setLoading(false)
-        return
-      }
+        const playlistData = await userResponse.json()
+        
+        if (!playlistData.result || !playlistData.result.tracks) {
+          setError('Playlist not found')
+          setLoading(false)
+          return
+        }
 
-      const playlistData = await userResponse.json()
-      
-      if (!playlistData.result || !playlistData.result.tracks) {
-        setError('Playlist not found')
-        setLoading(false)
-        return
-      }
+        const trackRefs = playlistData.result.tracks || []
+        
+        if (trackRefs.length === 0) {
+          setError('No tracks in playlist')
+          setLoading(false)
+          return
+        }
 
-      const trackRefs = playlistData.result.tracks || []
-      
-      if (trackRefs.length === 0) {
-        setError('No tracks in playlist')
-        setLoading(false)
-        return
-      }
+        const foundTracks: Array<{title: string, artist: string, trackId: number, albumId: number}> = []
+        const seen = new Set<string>()
 
-      const foundTracks: Array<{title: string, artist: string, trackId: number, albumId: number}> = []
-      const seen = new Set<string>()
+        trackRefs.forEach((ref: { track: { id: number; title: string; artists?: Array<{ name: string }>; albums?: Array<{ id: number }> } }) => {
+          const track = ref.track
+          if (track && track.title) {
+            const title = track.title
+            const trackId = track.id || 0
+            const albumId = track.albums?.[0]?.id || 0
+            let artist = 'Unknown'
 
-      trackRefs.forEach((ref: { track: { id: number; title: string; artists?: Array<{ name: string }>; albums?: Array<{ id: number }> } }) => {
-        const track = ref.track
-        if (track && track.title) {
-          const title = track.title
-          const trackId = track.id || 0
-          const albumId = track.albums?.[0]?.id || 0
-          let artist = 'Unknown'
+            if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+              const artistNames = track.artists
+                .map((a: { name: string }) => a.name)
+                .filter(Boolean)
+              if (artistNames.length > 0) {
+                artist = artistNames.join(', ')
+              }
+            }
 
-          if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
-            const artistNames = track.artists
-              .map((a: { name: string }) => a.name)
-              .filter(Boolean)
-            if (artistNames.length > 0) {
-              artist = artistNames.join(', ')
+            if (title.length > 2 && title.length < 200) {
+              const key = title.toLowerCase()
+              if (!seen.has(key)) {
+                seen.add(key)
+                foundTracks.push({ title, artist, trackId, albumId })
+              }
             }
           }
+        })
 
-          if (title.length > 2 && title.length < 200) {
-            const key = title.toLowerCase()
-            if (!seen.has(key)) {
-              seen.add(key)
-              foundTracks.push({ title, artist, trackId, albumId })
+        if (foundTracks.length === 0) {
+          setError('No tracks found. The playlist might be empty.')
+        } else {
+          const playlistTitle = playlistData.result.title || 'playlist'
+          setTracks(foundTracks, playlistTitle)
+        }
+      } else if (albumIdMatch) {
+        const albumId = albumIdMatch[1]
+        const apiUrl = `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/albums/${albumId}`)}`
+
+        const userResponse = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `OAuth ${token}`,
+          }
+        })
+
+        if (!userResponse.ok) {
+          const errData = await userResponse.json().catch(() => ({}))
+          setError(`Failed to fetch album: ${errData.error || userResponse.status}`)
+          setLoading(false)
+          return
+        }
+
+        const albumData = await userResponse.json()
+        
+        if (!albumData.result) {
+          setError('Album not found')
+          setLoading(false)
+          return
+        }
+
+        const tracksArray = albumData.result.volumes?.[0] || []
+        
+        if (tracksArray.length === 0) {
+          setError('No tracks in album')
+          setLoading(false)
+          return
+        }
+
+        const foundTracks: Array<{title: string, artist: string, trackId: number, albumId: number}> = []
+        const seen = new Set<string>()
+
+        tracksArray.forEach((track: { id: number; title: string; artists?: Array<{ name: string }> }) => {
+          if (track && track.title) {
+            const title = track.title
+            const trackId = track.id || 0
+            let artist = 'Unknown'
+
+            if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+              const artistNames = track.artists
+                .map((a: { name: string }) => a.name)
+                .filter(Boolean)
+              if (artistNames.length > 0) {
+                artist = artistNames.join(', ')
+              }
+            }
+
+            if (title.length > 2 && title.length < 200) {
+              const key = title.toLowerCase()
+              if (!seen.has(key)) {
+                seen.add(key)
+                foundTracks.push({ title, artist, trackId, albumId: parseInt(albumId) })
+              }
             }
           }
-        }
-      })
+        })
 
-      if (foundTracks.length === 0) {
-        setError('No tracks found. The playlist might be empty.')
+        if (foundTracks.length === 0) {
+          setError('No tracks found. The album might be empty.')
+        } else {
+          const albumTitle = albumData.result.title || 'album'
+          setTracks(foundTracks, albumTitle)
+        }
       } else {
-        const playlistTitle = playlistData.result.title || 'playlist'
-        setTracks(foundTracks, playlistTitle)
+        setError('Invalid URL. Use format: https://music.yandex.ru/playlists/... or https://music.yandex.ru/album/...')
+        setLoading(false)
+        return
       }
     } catch (err) {
-      setError('Failed to fetch playlist. Check console for details.')
+      setError('Failed to fetch. Check console for details.')
     }
     setLoading(false)
   }
@@ -224,8 +292,8 @@ export default function Home() {
               Import Music
             </h1>
           </div>
-          <p className={`text-lg ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            Download Yandex Music playlists to your computer
+            <p className={`text-lg ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+            Download Yandex Music playlists and albums to your computer
           </p>
         </div>
 
@@ -244,13 +312,13 @@ export default function Home() {
                   className={`text-sm block mb-2 font-semibold`}
                   style={{ color: isDark ? '#e2e8f0' : '#334155' }}
                 >
-                  Playlist URL:
+                  Playlist or Album URL:
                 </label>
                 <Input
                   type="url"
                   value={playlistUrl}
                   onChange={(e) => setPlaylistUrl(e.target.value)}
-                  placeholder="https://music.yandex.ru/playlists/..."
+                  placeholder="https://music.yandex.ru/playlists/... or https://music.yandex.ru/album/..."
                   style={{
                     backgroundColor: isDark ? '#0f172a' : '#ffffff',
                     borderColor: isDark ? '#475569' : '#cbd5e1',
@@ -259,7 +327,7 @@ export default function Home() {
                 />
               </div>
               <p className={isDark ? 'text-slate-400' : 'text-slate-500'} style={{ fontSize: '14px' }}>
-                Copy the playlist link from Yandex Music and paste it here
+                Copy the playlist or album link from Yandex Music and paste it here
               </p>
             </div>
 
@@ -273,7 +341,7 @@ export default function Home() {
                 ) : (
                   <>
                     <Link className="w-5 h-5 mr-2" />
-                    Import Playlist
+                    Import
                   </>
                 )}
               </Button>
@@ -412,7 +480,7 @@ export default function Home() {
         {!loading && tracks.length === 0 && !error && (
           <div className="text-center py-12" style={{ color: isDark ? '#64748b' : '#94a3b8' }}>
             <HardDrive className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Paste a Yandex Music playlist URL above to get started</p>
+            <p>Paste a Yandex Music playlist or album URL above to get started</p>
           </div>
         )}
       </div>
