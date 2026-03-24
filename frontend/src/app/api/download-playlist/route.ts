@@ -167,7 +167,9 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
 }
 
 function md5(str: string): string {
-  return crypto.createHash('md5').update(str).digest('hex');
+  const utf8Bytes = new TextEncoder().encode(str);
+  const hashBuffer = crypto.createHash('md5').update(utf8Bytes).digest();
+  return Buffer.from(hashBuffer).toString('hex');
 }
 
 function sanitizeFileName(name: string): string {
