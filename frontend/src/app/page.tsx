@@ -471,19 +471,19 @@ export default function Home() {
         <Boxes />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 py-8 max-w-6xl">
+      <div className="relative z-10 container mx-auto px-3 md:px-4 py-6 md:py-8">
         <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600">
-            <Music className="w-6 h-6 text-white" />
+          <div className="p-1.5 md:p-2 rounded-lg md:rounded-xl bg-gradient-to-br from-violet-600 to-blue-600">
+            <Music className="w-5 h-5 md:w-6 md:h-6 text-white" />
           </div>
-          <h1 className={`text-3xl font-bold bg-gradient-to-r ${isDark ? 'from-white via-blue-200 to-blue-400' : 'from-violet-700 via-violet-600 to-blue-600'} bg-clip-text text-transparent`}>
+          <h1 className={`text-2xl md:text-3xl font-bold bg-gradient-to-r ${isDark ? 'from-white via-blue-200 to-blue-400' : 'from-violet-700 via-violet-600 to-blue-600'} bg-clip-text text-transparent`}>
             Import Music
           </h1>
         </div>
 
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
           <div 
-            className="w-64 flex-shrink-0 rounded-2xl overflow-hidden self-start"
+            className="w-full md:w-64 flex-shrink-0 rounded-2xl overflow-hidden self-start"
             style={{ 
               backgroundColor: isDark ? '#1e293b' : '#ffffff',
               borderWidth: '2px',
@@ -536,7 +536,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 w-full">
             {activeTab === 'import' ? (
               <div 
                 className="rounded-2xl p-6 shadow-xl"
@@ -546,7 +546,7 @@ export default function Home() {
                   borderColor: isDark ? '#334155' : '#e2e8f0'
                 }}
               >
-                <h2 className="text-xl font-bold mb-4" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
                   Import from URL
                 </h2>
                 <div className="space-y-4">
@@ -697,7 +697,7 @@ export default function Home() {
                   borderColor: isDark ? '#334155' : '#e2e8f0'
                 }}
               >
-                <h2 className="text-xl font-bold mb-4" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
                   Search by Name
                 </h2>
                 <div className="space-y-4">
