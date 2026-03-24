@@ -176,4 +176,3 @@ function sanitizeFileName(name: string): string {
   let safe = name.replace(/[<>:"/\\|?*]/g, '').trim().substring(0, 100);
   return safe || 'unknown';
 }
-}
