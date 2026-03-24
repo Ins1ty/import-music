@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
     const headers: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
+      'Accept': '*/*',
     };
     
     if (authHeader) {
@@ -29,12 +29,13 @@ export async function GET(request: NextRequest) {
       cache: 'no-store',
     });
 
-    const data = await response.text();
+    const data = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
     
     return new NextResponse(data, {
       status: response.status,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': contentType.includes('application/json') ? 'application/json' : contentType,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
