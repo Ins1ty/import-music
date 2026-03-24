@@ -173,9 +173,16 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  let safe = name.replace(/[<>:"/\\|?*]/g, '').replace(/[\x00-\x1F]/g, '').trim().substring(0, 100);
-  if (!/^[\x20-\x7EА-Яа-яёЁ]*$/.test(safe)) {
-    safe = safe.replace(/[^\x20-\x7EА-Яа-яёЁ]/g, '_');
-  }
-  return safe || 'unknown';
+  const ascii = name
+    .split('')
+    .map(c => {
+      const code = c.charCodeAt(0);
+      if (code < 32 || code > 126) return '_';
+      if ('<>:"/\\|?*'.includes(c)) return '_';
+      return c;
+    })
+    .join('')
+    .trim()
+    .substring(0, 100);
+  return ascii || 'unknown';
 }
