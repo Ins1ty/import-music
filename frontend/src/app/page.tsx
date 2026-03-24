@@ -57,14 +57,22 @@ export default function Home() {
         }
       })
 
+      const text = await userResponse.text()
+      
       if (!userResponse.ok) {
-        const errData = await userResponse.json().catch(() => ({}))
-        setError(`Failed to fetch playlist: ${errData.error || userResponse.status}`)
+        setError(`Failed to fetch playlist: ${text.substring(0, 100)}`)
         setLoading(false)
         return
       }
 
-      const playlistData = await userResponse.json()
+      let playlistData
+      try {
+        playlistData = JSON.parse(text)
+      } catch (e) {
+        setError(`Invalid JSON response: ${text.substring(0, 100)}`)
+        setLoading(false)
+        return
+      }
       
       if (!playlistData.result || !playlistData.result.tracks) {
         setError('Playlist not found')
