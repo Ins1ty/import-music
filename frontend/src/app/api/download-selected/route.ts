@@ -144,9 +144,11 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  return name
+  const result = name
+    .replace(/[^\x00-\x7F]/g, '_')
     .replace(/[<>:"/\\|?*]/g, '')
     .replace(/[\x00-\x1f]/g, '')
     .trim()
-    .substring(0, 100) || 'unknown';
+    .substring(0, 100);
+  return result || 'unknown';
 }
