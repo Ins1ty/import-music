@@ -7,8 +7,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL is required' }, { status: 400 });
   }
 
-  if (!url.startsWith('https://api.music.yandex.net')) {
-    return NextResponse.json({ error: 'Only Yandex Music API requests are allowed' }, { status: 403 });
+  if (!url.startsWith('https://api.music.yandex.net') && 
+      !url.startsWith('https://storage.mds.yandex.net') &&
+      !url.startsWith('https://')) {
+    return NextResponse.json({ error: 'Only Yandex Music requests are allowed' }, { status: 403 });
   }
 
   try {
