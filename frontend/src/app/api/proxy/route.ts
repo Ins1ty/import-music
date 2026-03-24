@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://music.yandex.ru/',
+        'Accept': 'application/json',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+        'Origin': 'https://music.yandex.ru',
       },
       cache: 'no-store',
     });
