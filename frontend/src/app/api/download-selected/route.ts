@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -143,21 +144,9 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  const result = name
+  return name
     .replace(/[<>:"/\\|?*]/g, '')
     .replace(/[\x00-\x1f]/g, '')
     .trim()
-    .substring(0, 100);
-  
-  if (!result) return 'unknown';
-  
-  const asciiOnly = result.replace(/[^\x00-\x7f]/g, '_');
-  if (asciiOnly === result) return result;
-  
-  const hasNonAscii = /[^\x00-\x7f]/.test(result);
-  if (hasNonAscii) {
-    return asciiOnly;
-  }
-  
-  return result;
+    .substring(0, 100) || 'unknown';
 }
