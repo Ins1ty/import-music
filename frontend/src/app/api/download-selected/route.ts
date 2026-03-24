@@ -148,6 +148,6 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  const asciiOnly = name.replace(/[^\x00-\x7F]/g, '').replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim().substring(0, 100);
-  return asciiOnly || 'unknown';
+  let safe = name.replace(/[<>:"/\\|?*]/g, '').trim().substring(0, 100);
+  return safe || 'unknown';
 }
