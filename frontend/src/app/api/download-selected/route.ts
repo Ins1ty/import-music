@@ -37,20 +37,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const zipBuffer = await zip.generateAsync({
-      type: 'base64',
+    const zipBlob = await zip.generateAsync({
+      type: 'blob',
       compression: 'DEFLATE',
       compressionOptions: { level: 9 }
     });
 
-    const zipBufferDecoded = Buffer.from(zipBuffer, 'base64');
+    const arrayBuffer = await zipBlob.arrayBuffer();
 
-    return new NextResponse(zipBufferDecoded, {
+    return new NextResponse(arrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${zipFileName}"`,
-        'Content-Length': zipBuffer.length.toString(),
       },
     });
   } catch (error) {
