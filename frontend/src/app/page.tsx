@@ -160,10 +160,10 @@ export default function Home() {
 
       for (const download of data.downloads) {
         try {
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
-          const audioResponse = await fetch(proxyUrl, {
+          const audioResponse = await fetch(download.url, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://music.yandex.ru/',
             },
           })
           
