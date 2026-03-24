@@ -114,22 +114,22 @@ export default function Home() {
         }
       } else if (albumIdMatch) {
         const albumId = albumIdMatch[1]
-        const apiUrl = `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/albums/${albumId}`)}`
-
-        const userResponse = await fetch(apiUrl, {
-          headers: {
-            'Authorization': `OAuth ${token}`,
+        
+        const albumResponse = await fetch(
+          `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/albums/${albumId}`)}`,
+          {
+            headers: { 'Authorization': `OAuth ${token}` }
           }
-        })
+        )
 
-        if (!userResponse.ok) {
-          const errData = await userResponse.json().catch(() => ({}))
-          setError(`Failed to fetch album: ${errData.error || userResponse.status}`)
+        if (!albumResponse.ok) {
+          const errData = await albumResponse.json().catch(() => ({}))
+          setError(`Failed to fetch album: ${errData.error || albumResponse.status}`)
           setLoading(false)
           return
         }
 
-        const albumData = await userResponse.json()
+        const albumData = await albumResponse.json()
         
         if (!albumData.result) {
           setError('Album not found')
@@ -137,8 +137,18 @@ export default function Home() {
           return
         }
 
-        const tracksArray = albumData.result.volumes?.[0] || []
+        console.log('Album data:', JSON.stringify(albumData.result, null, 2).substring(0, 2000))
+
+        let tracksArray: Array<{ id: number; title: string; artists?: Array<{ name: string }> }> = []
+
+        if (albumData.result.volumes && albumData.result.volumes.length > 0) {
+          tracksArray = albumData.result.volumes.flat()
+        } else if (albumData.result.tracks) {
+          tracksArray = albumData.result.tracks
+        }
         
+        console.log('Tracks found:', tracksArray.length)
+
         if (tracksArray.length === 0) {
           setError('No tracks in album')
           setLoading(false)
@@ -148,7 +158,7 @@ export default function Home() {
         const foundTracks: Array<{title: string, artist: string, trackId: number, albumId: number}> = []
         const seen = new Set<string>()
 
-        tracksArray.forEach((track: { id: number; title: string; artists?: Array<{ name: string }> }) => {
+        tracksArray.forEach((track) => {
           if (track && track.title) {
             const title = track.title
             const trackId = track.id || 0
@@ -156,7 +166,7 @@ export default function Home() {
 
             if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
               const artistNames = track.artists
-                .map((a: { name: string }) => a.name)
+                .map((a) => a.name)
                 .filter(Boolean)
               if (artistNames.length > 0) {
                 artist = artistNames.join(', ')
