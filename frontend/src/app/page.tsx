@@ -176,7 +176,11 @@ export default function Home() {
         }
       }
 
-      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const zipBlob = await zip.generateAsync({ 
+        type: 'blob', 
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      })
       const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
       a.href = url
