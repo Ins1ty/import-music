@@ -6,7 +6,7 @@ import { useTheme } from '@/components/theme-provider'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Boxes } from '@/components/ui/background-boxes'
-import { Music, Loader2, X, AlertCircle, Download, HardDrive, Link, CheckSquare, Square } from 'lucide-react'
+import { Music, Loader2, X, AlertCircle, Download, HardDrive, Link, CheckSquare, Square, Search } from 'lucide-react'
 
 export default function Home() {
   const { 
@@ -29,6 +29,9 @@ export default function Home() {
   
   const [token] = useState('y0__xDnpeqLAhje-AYgwIDy6xY7k7c1lRcL71AES3yo_cBhvMx2Nw')
   const [playlistUrl, setPlaylistUrl] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Array<{title: string, artist: string, trackId: number, albumId: number}>>([])
+  const [searching, setSearching] = useState(false)
 
   const handleTokenImport = async () => {
     if (!playlistUrl.trim()) {
@@ -205,6 +208,86 @@ export default function Home() {
     setLoading(false)
   }
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setError('Please enter a search query')
+      return
+    }
+
+    setSearching(true)
+    setError(null)
+    setSearchResults([])
+
+    try {
+      const response = await fetch(
+        `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/search?text=${encodeURIComponent(searchQuery)}&type=track&page=0`)}`,
+        {
+          headers: { 'Authorization': `OAuth ${token}` }
+        }
+      )
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        setError(`Search failed: ${errData.error || response.status}`)
+        setSearching(false)
+        return
+      }
+
+      const data = await response.json()
+      console.log('Search results:', data)
+
+      if (!data.result || !data.result.tracks) {
+        setError('No results found')
+        setSearching(false)
+        return
+      }
+
+      const tracks = data.result.tracks || []
+      const foundTracks: Array<{title: string, artist: string, trackId: number, albumId: number}> = []
+
+      tracks.forEach((item: { track: { id: number; title: string; artists?: Array<{ name: string }>; albums?: Array<{ id: number }> } }) => {
+        const track = item.track
+        if (track && track.title) {
+          const title = track.title
+          const trackId = track.id || 0
+          const albumId = track.albums?.[0]?.id || 0
+          let artist = 'Unknown'
+
+          if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+            const artistNames = track.artists
+              .map((a: { name: string }) => a.name)
+              .filter(Boolean)
+            if (artistNames.length > 0) {
+              artist = artistNames.join(', ')
+            }
+          }
+
+          if (title.length > 2 && title.length < 200) {
+            foundTracks.push({ title, artist, trackId, albumId })
+          }
+        }
+      })
+
+      if (foundTracks.length === 0) {
+        setError('No tracks found')
+      } else {
+        setSearchResults(foundTracks)
+      }
+    } catch (err) {
+      setError('Search failed. Check console for details.')
+    }
+
+    setSearching(false)
+  }
+
+  const handleAddFromSearch = () => {
+    if (searchResults.length > 0) {
+      setTracks(searchResults, 'Search Results')
+      setSearchResults([])
+      setSearchQuery('')
+    }
+  }
+
   const handleDownload = async () => {
     if (selectedTracks.size === 0) {
       setError('Please select at least one track to download')
@@ -351,7 +434,7 @@ export default function Home() {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Importing...
+                    Import
                   </>
                 ) : (
                   <>
@@ -362,7 +445,107 @@ export default function Home() {
               </Button>
             </div>
           </div>
-        </div>
+
+          <div className="mb-8">
+            <div 
+              className="rounded-2xl p-6 max-w-2xl mx-auto shadow-xl"
+              style={{ 
+                backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                borderWidth: '2px',
+                borderColor: isDark ? '#334155' : '#e2e8f0'
+              }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <label 
+                    className={`text-sm block mb-2 font-semibold`}
+                    style={{ color: isDark ? '#e2e8f0' : '#334155' }}
+                  >
+                    Search by track name:
+                  </label>
+                  <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter track or artist name..."
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    style={{
+                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                      borderColor: isDark ? '#475569' : '#cbd5e1',
+                      color: isDark ? '#f8fafc' : '#0f172a',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button onClick={handleSearch} disabled={searching} className="flex-1 h-12">
+                  {searching ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Music className="w-5 h-5 mr-2" />
+                      Search
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div 
+              className="rounded-2xl overflow-hidden max-w-2xl mx-auto shadow-xl mb-8"
+              style={{ 
+                backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                borderWidth: '2px',
+                borderColor: isDark ? '#334155' : '#e2e8f0'
+              }}
+            >
+              <div 
+                className="p-4 flex justify-between items-center"
+                style={{ 
+                  backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                  borderBottomWidth: '2px',
+                  borderColor: isDark ? '#334155' : '#e2e8f0'
+                }}
+              >
+                <span className="font-semibold" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                  {searchResults.length} results found
+                </span>
+                <Button onClick={handleAddFromSearch} className="h-9">
+                  <Download className="w-4 h-4 mr-2" />
+                  Add All to Download List
+                </Button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {searchResults.map((track, index) => (
+                  <div 
+                    key={`${track.trackId}-${index}`}
+                    className="p-3 flex items-center gap-3"
+                    style={{ 
+                      borderBottomWidth: '1px',
+                      borderColor: isDark ? '#334155' : '#e2e8f0'
+                    }}
+                  >
+                    <Music className="w-4 h-4 flex-shrink-0" style={{ color: isDark ? '#60a5fa' : '#3b82f6' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate" style={{ color: isDark ? '#f8fafc' : '#0f172a' }}>
+                        {track.title}
+                      </div>
+                      <div className="text-sm truncate" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+                        {track.artist}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         {error && (
           <div 
