@@ -114,22 +114,27 @@ export default function Home() {
         }
       } else if (albumIdMatch) {
         const albumId = albumIdMatch[1]
+        console.log('Fetching album:', albumId)
         
         const albumResponse = await fetch(
-          `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/albums/${albumId}`)}`,
+          `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/albums/${albumId}/with-tracks`)}`,
           {
             headers: { 'Authorization': `OAuth ${token}` }
           }
         )
 
+        console.log('Response status:', albumResponse.status)
+
         if (!albumResponse.ok) {
           const errData = await albumResponse.json().catch(() => ({}))
+          console.log('Error response:', errData)
           setError(`Failed to fetch album: ${errData.error || albumResponse.status}`)
           setLoading(false)
           return
         }
 
         const albumData = await albumResponse.json()
+        console.log('Raw response:', JSON.stringify(albumData).substring(0, 1000))
         
         if (!albumData.result) {
           setError('Album not found')
