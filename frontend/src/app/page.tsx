@@ -69,13 +69,15 @@ export default function Home() {
       try {
         playlistData = JSON.parse(text)
       } catch (e) {
-        setError(`Invalid JSON response: ${text.substring(0, 100)}`)
+        setError(`Invalid JSON: ${text.substring(0, 200)}`)
         setLoading(false)
         return
       }
       
+      console.log('Playlist response:', playlistData)
+      
       if (!playlistData.result || !playlistData.result.tracks) {
-        setError('Playlist not found')
+        setError(`Playlist not found or empty. Response: ${JSON.stringify(playlistData).substring(0, 200)}`)
         setLoading(false)
         return
       }
