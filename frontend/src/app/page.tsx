@@ -345,20 +345,24 @@ export default function Home() {
       const total = data.downloads.length
       setDownloadTotal(total)
 
-      for (let i = 0; i < data.downloads.length; i++) {
-        const download = data.downloads[i]
-        try {
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
-          const audioResponse = await fetch(proxyUrl)
-          
-          if (audioResponse.ok) {
-            const arrayBuffer = await audioResponse.arrayBuffer()
-            zip.file(download.filename, arrayBuffer)
-          }
-          setDownloadProgress(i + 1)
-        } catch (e) {
-          console.error('Failed to download:', download.filename, e)
+      const concurrency = 5
+      let completed = 0
+
+      const downloadTrack = async (download: { url: string; filename: string }) => {
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
+        const audioResponse = await fetch(proxyUrl)
+        
+        if (audioResponse.ok) {
+          const arrayBuffer = await audioResponse.arrayBuffer()
+          zip.file(download.filename, arrayBuffer)
         }
+        completed++
+        setDownloadProgress(completed)
+      }
+
+      for (let i = 0; i < data.downloads.length; i += concurrency) {
+        const batch = data.downloads.slice(i, i + concurrency)
+        await Promise.all(batch.map(downloadTrack))
       }
 
       setDownloadProgress(total)
@@ -431,20 +435,24 @@ export default function Home() {
       const total = data.downloads.length
       setDownloadTotal(total)
 
-      for (let i = 0; i < data.downloads.length; i++) {
-        const download = data.downloads[i]
-        try {
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
-          const audioResponse = await fetch(proxyUrl)
-          
-          if (audioResponse.ok) {
-            const arrayBuffer = await audioResponse.arrayBuffer()
-            zip.file(download.filename, arrayBuffer)
-          }
-          setDownloadProgress(i + 1)
-        } catch (e) {
-          console.error('Failed to download:', download.filename, e)
+      const concurrency = 5
+      let completed = 0
+
+      const downloadTrack = async (download: { url: string; filename: string }) => {
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
+        const audioResponse = await fetch(proxyUrl)
+        
+        if (audioResponse.ok) {
+          const arrayBuffer = await audioResponse.arrayBuffer()
+          zip.file(download.filename, arrayBuffer)
         }
+        completed++
+        setDownloadProgress(completed)
+      }
+
+      for (let i = 0; i < data.downloads.length; i += concurrency) {
+        const batch = data.downloads.slice(i, i + concurrency)
+        await Promise.all(batch.map(downloadTrack))
       }
 
       setDownloadProgress(total)
