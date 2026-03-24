@@ -36,6 +36,9 @@ export default function Home() {
   const [selectedSearchResults, setSelectedSearchResults] = useState<Set<number>>(new Set())
   const [searchDownloading, setSearchDownloading] = useState(false)
   const [activeTab, setActiveTab] = useState<'import' | 'search'>('import')
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [downloadTotal, setDownloadTotal] = useState(0)
+  const [creatingZip, setCreatingZip] = useState(false)
 
   const handleTokenImport = async () => {
     if (!playlistUrl.trim()) {
@@ -330,6 +333,7 @@ export default function Home() {
         throw new Error(errorData.error || 'Failed to get download URLs')
       }
 
+      setDownloadProgress(0)
       const data = await response.json()
       
       if (!data.downloads || data.downloads.length === 0) {
@@ -338,8 +342,11 @@ export default function Home() {
 
       const JSZip = (await import('jszip')).default
       const zip = new JSZip()
+      const total = data.downloads.length
+      setDownloadTotal(total)
 
-      for (const download of data.downloads) {
+      for (let i = 0; i < data.downloads.length; i++) {
+        const download = data.downloads[i]
         try {
           const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
           const audioResponse = await fetch(proxyUrl)
@@ -348,10 +355,14 @@ export default function Home() {
             const arrayBuffer = await audioResponse.arrayBuffer()
             zip.file(download.filename, arrayBuffer)
           }
+          setDownloadProgress(i + 1)
         } catch (e) {
           console.error('Failed to download:', download.filename, e)
         }
       }
+
+      setDownloadProgress(total)
+      setCreatingZip(true)
 
       const zipBlob = await zip.generateAsync({ 
         type: 'blob', 
@@ -366,8 +377,10 @@ export default function Home() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      setCreatingZip(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed')
+      setCreatingZip(false)
     }
 
     setSearchDownloading(false)
@@ -406,6 +419,7 @@ export default function Home() {
         throw new Error(errorData.error || 'Failed to get download URLs')
       }
 
+      setDownloadProgress(0)
       const data = await response.json()
       
       if (!data.downloads || data.downloads.length === 0) {
@@ -414,8 +428,11 @@ export default function Home() {
 
       const JSZip = (await import('jszip')).default
       const zip = new JSZip()
+      const total = data.downloads.length
+      setDownloadTotal(total)
 
-      for (const download of data.downloads) {
+      for (let i = 0; i < data.downloads.length; i++) {
+        const download = data.downloads[i]
         try {
           const proxyUrl = `/api/proxy?url=${encodeURIComponent(download.url)}`
           const audioResponse = await fetch(proxyUrl)
@@ -424,10 +441,14 @@ export default function Home() {
             const arrayBuffer = await audioResponse.arrayBuffer()
             zip.file(download.filename, arrayBuffer)
           }
+          setDownloadProgress(i + 1)
         } catch (e) {
           console.error('Failed to download:', download.filename, e)
         }
       }
+
+      setDownloadProgress(total)
+      setCreatingZip(true)
 
       const zipBlob = await zip.generateAsync({ 
         type: 'blob', 
@@ -442,8 +463,10 @@ export default function Home() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      setCreatingZip(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed')
+      setCreatingZip(false)
     }
 
     setDownloading(false)
@@ -632,7 +655,10 @@ export default function Home() {
                         )}
                         <Button onClick={handleDownload} disabled={downloading || selectedTracks.size === 0} className="h-9" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
                           {downloading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              {creatingZip ? 'Creating ZIP...' : `${downloadProgress} of ${downloadTotal}`}
+                            </span>
                           ) : (
                             <>
                               <Download className="w-4 h-4 mr-2" />
@@ -773,7 +799,10 @@ export default function Home() {
                       <div className="flex gap-2">
                         <Button onClick={handleDownloadFromSearch} disabled={searchDownloading || (selectedSearchResults.size === 0 && searchResults.length > 0)} className="h-9" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
                           {searchDownloading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              {creatingZip ? 'Creating ZIP...' : `${downloadProgress} of ${downloadTotal}`}
+                            </span>
                           ) : (
                             <>
                               <Download className="w-4 h-4 mr-2" />

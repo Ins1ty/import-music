@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
       const downloadInfo = await getDownloadInfo(token, trackId);
       if (!downloadInfo) continue;
 
-      const title = track.title || 'Unknown';
-      const artist = track.artist || 'Unknown';
+      const title = (track.title || 'Unknown').replace(/[<>:"/\\|?*]/g, '-');
+      const artist = (track.artist || 'Unknown').replace(/[<>:"/\\|?*]/g, '-');
       const filename = `${artist} - ${title}.mp3`;
 
       downloadUrls.push({
