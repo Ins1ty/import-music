@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
       const title = track.title || 'Unknown';
       const artist = track.artist || 'Unknown';
-      const filename = `${String(idx + 1).padStart(2, '0')} - ${artist} - ${title}.mp3`;
+      const filename = `${artist} - ${title}.mp3`;
 
       downloadUrls.push({
         url: downloadInfo.directUrl,

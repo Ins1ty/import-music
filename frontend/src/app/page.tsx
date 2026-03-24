@@ -361,7 +361,7 @@ export default function Home() {
       const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `search_results.zip`
+      a.download = `search_results (${selectedSearchResults.size} tracks).zip`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -437,7 +437,7 @@ export default function Home() {
       const url = URL.createObjectURL(zipBlob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${data.playlistTitle || 'playlist'}.zip`
+      a.download = `${data.playlistTitle || 'playlist'} (${selectedTracks.size} tracks).zip`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
