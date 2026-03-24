@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import JSZip from 'jszip';
 
 const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Token and tracks are required' }, { status: 400 });
     }
 
+    const { default: JSZip } = await import('jszip');
     const zip = new JSZip();
     
     const trackCount = tracks.length;
@@ -29,23 +28,18 @@ export async function POST(request: NextRequest) {
 
       const audioData = await downloadTrack(token, trackId);
       
-      if (audioData && audioData.length > 0) {
+      if (audioData && audioData.byteLength > 0) {
         const title = track.title || 'Unknown';
         const artist = track.artist || 'Unknown';
         const fileName = `${String(idx + 1).padStart(2, '0')} - ${sanitizeFileName(artist + ' - ' + title)}.mp3`;
-        zip.file(fileName, Buffer.from(audioData));
+        zip.file(fileName, audioData);
       }
     }
 
-    const zipBlob = await zip.generateAsync({
-      type: 'blob',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 9 }
-    });
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const zipArrayBuffer = await zipBlob.arrayBuffer();
 
-    const arrayBuffer = await zipBlob.arrayBuffer();
-
-    return new NextResponse(arrayBuffer, {
+    return new NextResponse(zipArrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
@@ -60,7 +54,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function downloadTrack(token: string, trackId: number): Promise<Buffer | null> {
+async function downloadTrack(token: string, trackId: number): Promise<ArrayBuffer | null> {
   try {
     const downloadInfo = await getDownloadInfo(token, trackId);
     if (!downloadInfo) return null;
@@ -73,9 +67,7 @@ async function downloadTrack(token: string, trackId: number): Promise<Buffer | n
     });
 
     if (!response.ok) return null;
-
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    return response.arrayBuffer();
   } catch {
     return null;
   }
@@ -137,9 +129,7 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
 }
 
 function md5(str: string): string {
-  const utf8Bytes = new TextEncoder().encode(str);
-  const hashBuffer = crypto.createHash('md5').update(utf8Bytes).digest();
-  return Buffer.from(hashBuffer).toString('hex');
+  return crypto.createHash('md5').update(Buffer.from(str, 'utf-8')).digest('hex');
 }
 
 function sanitizeFileName(name: string): string {
