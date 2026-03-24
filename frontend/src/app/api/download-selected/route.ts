@@ -149,8 +149,8 @@ function md5(str: string): string {
 
 function sanitizeFileName(name: string): string {
   let safe = name.replace(/[<>:"/\\|?*]/g, '').replace(/[\x00-\x1F]/g, '').trim().substring(0, 100);
-  if (!/^[\x20-\x7E]*$/.test(safe)) {
-    safe = safe.replace(/[^\x20-\x7E]/g, '_');
+  if (!/^[\x20-\x7EА-Яа-яёЁ]*$/.test(safe)) {
+    safe = safe.replace(/[^\x20-\x7EА-Яа-яёЁ]/g, '_');
   }
   return safe || 'unknown';
 }
