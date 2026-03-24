@@ -62,12 +62,14 @@ export async function POST(request: NextRequest) {
     }
 
     const zipBuffer = await zip.generateAsync({
-      type: 'uint8array',
+      type: 'base64',
       compression: 'DEFLATE',
       compressionOptions: { level: 9 }
     });
 
-    return new NextResponse(new Uint8Array(zipBuffer), {
+    const zipBufferDecoded = Buffer.from(zipBuffer, 'base64');
+
+    return new NextResponse(zipBufferDecoded, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
