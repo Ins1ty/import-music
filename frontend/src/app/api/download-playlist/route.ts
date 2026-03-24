@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import JSZip from 'jszip';
 
 const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,21 +38,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Playlist is empty' }, { status: 400 });
     }
 
-    const archiver = await import('archiver');
+    const zip = new JSZip();
     
     const trackCount = tracks.length;
     const safeTitle = sanitizeFileName(playlistTitle);
     const zipFileName = `${safeTitle}.zip`;
-
-    const chunks: Uint8Array[] = [];
-
-    const archive = archiver.default('zip', {
-      zlib: { level: 9 }
-    });
-
-    archive.on('data', (chunk: Uint8Array) => {
-      chunks.push(chunk);
-    });
 
     for (let idx = 0; idx < tracks.length; idx++) {
       const trackRef = tracks[idx];
@@ -63,20 +56,22 @@ export async function POST(request: NextRequest) {
         const title = track.title || 'Unknown';
         const artists = extractArtists(track.artists || []);
         const fileName = `${String(idx + 1).padStart(2, '0')} - ${sanitizeFileName(artists + ' - ' + title)}.mp3`;
-        archive.append(audioData, { name: fileName });
+        zip.file(fileName, Buffer.from(audioData));
       }
     }
 
-    await archive.finalize();
+    const zipBuffer = await zip.generateAsync({
+      type: 'uint8array',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 9 }
+    });
 
-    const buffer = Buffer.concat(chunks);
-
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${zipFileName}"`,
-        'Content-Length': buffer.length.toString(),
+        'Content-Length': zipBuffer.length.toString(),
       },
     });
   } catch (error) {
@@ -173,16 +168,11 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  const ascii = name
-    .split('')
-    .map(c => {
-      const code = c.charCodeAt(0);
-      if (code < 32 || code > 126) return '_';
-      if ('<>:"/\\|?*'.includes(c)) return '_';
-      return c;
-    })
-    .join('')
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/[\x00-\x1f]/g, '')
     .trim()
-    .substring(0, 100);
-  return ascii || 'unknown';
+    .substring(0, 100) || 'unknown';
 }
