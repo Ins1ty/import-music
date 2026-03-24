@@ -31,24 +31,23 @@ export async function POST(request: NextRequest) {
       if (audioData && audioData.byteLength > 0) {
         const title = track.title || 'Unknown';
         const artist = track.artist || 'Unknown';
-        const fileName = `${String(idx + 1).padStart(2, '0')} - ${sanitizeFileName(artist + ' - ' + title)}.mp3`;
+        const fileName = `${String(idx + 1).padStart(2, '0')} - ${artist} - ${title}.mp3`;
         zip.file(fileName, audioData);
       }
     }
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const zipArrayBuffer = await zipBlob.arrayBuffer();
+    const zipBase64 = await zip.generateAsync({
+      type: 'base64',
+      compression: 'DEFLATE'
+    });
 
-    return new NextResponse(zipArrayBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${zipFileName}"`,
-      },
+    return NextResponse.json({
+      zip: zipBase64,
+      filename: zipFileName
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Download error' },
+      { error: error instanceof Error ? error.message: 'Download error' },
       { status: 500 }
     );
   }
@@ -131,8 +130,7 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
 function md5(str: string): string {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
-  const hash = crypto.createHash('md5').update(data).digest('hex');
-  return hash;
+  return crypto.createHash('md5').update(data).digest('hex');
 }
 
 function sanitizeFileName(name: string): string {
