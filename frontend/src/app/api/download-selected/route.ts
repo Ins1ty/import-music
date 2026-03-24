@@ -143,11 +143,21 @@ function md5(str: string): string {
 }
 
 function sanitizeFileName(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  const result = name
     .replace(/[<>:"/\\|?*]/g, '')
     .replace(/[\x00-\x1f]/g, '')
     .trim()
-    .substring(0, 100) || 'unknown';
+    .substring(0, 100);
+  
+  if (!result) return 'unknown';
+  
+  const asciiOnly = result.replace(/[^\x00-\x7f]/g, '_');
+  if (asciiOnly === result) return result;
+  
+  const hasNonAscii = /[^\x00-\x7f]/.test(result);
+  if (hasNonAscii) {
+    return asciiOnly;
+  }
+  
+  return result;
 }
