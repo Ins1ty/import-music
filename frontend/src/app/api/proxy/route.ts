@@ -8,10 +8,14 @@ export async function GET(request: NextRequest) {
   }
 
   const allowedHosts = ['api.music.yandex.net', 'storage.mds.yandex.net'];
-  const parsedUrl = new URL(url);
   
-  if (!allowedHosts.includes(parsedUrl.hostname)) {
-    return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
+  try {
+    const parsedUrl = new URL(url);
+    if (!allowedHosts.includes(parsedUrl.hostname)) {
+      return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
   try {

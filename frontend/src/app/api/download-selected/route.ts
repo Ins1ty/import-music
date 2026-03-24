@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
+
+const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,35 +14,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Token and tracks are required' }, { status: 400 });
     }
 
-    const downloadUrls: Array<{ url: string; filename: string }> = [];
+    const { default: JSZip } = await import('jszip');
+    const zip = new JSZip();
+    
+    const trackCount = tracks.length;
+    const safeTitle = sanitizeFileName(playlistTitle || 'playlist');
+    const zipFileName = `${safeTitle} (${trackCount} tracks).zip`;
 
     for (let idx = 0; idx < tracks.length; idx++) {
       const track = tracks[idx];
       const trackId = track.trackId || track.id;
       if (!trackId) continue;
 
-      const downloadInfo = await getDownloadInfo(token, trackId);
-      if (!downloadInfo) continue;
-
-      const title = track.title || 'Unknown';
-      const artist = track.artist || 'Unknown';
-      const filename = `${String(idx + 1).padStart(2, '0')} - ${artist} - ${title}.mp3`;
-
-      downloadUrls.push({
-        url: downloadInfo.directUrl,
-        filename
-      });
+      const audioData = await downloadTrack(token, trackId);
+      
+      if (audioData && audioData.byteLength > 0) {
+        const title = track.title || 'Unknown';
+        const artist = track.artist || 'Unknown';
+        const fileName = `${String(idx + 1).padStart(2, '0')} - ${artist} - ${title}.mp3`;
+        zip.file(fileName, audioData);
+      }
     }
 
+    const zipBase64 = await zip.generateAsync({ type: 'base64' });
+
     return NextResponse.json({
-      downloads: downloadUrls,
-      playlistTitle: playlistTitle || 'playlist'
+      zip: zipBase64,
+      filename: zipFileName
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error' },
+      { error: error instanceof Error ? error.message : 'Download error' },
       { status: 500 }
     );
+  }
+}
+
+async function downloadTrack(token: string, trackId: number): Promise<ArrayBuffer | null> {
+  try {
+    const downloadInfo = await getDownloadInfo(token, trackId);
+    if (!downloadInfo) return null;
+
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(downloadInfo.directUrl)}`;
+    const response = await fetch(proxyUrl);
+
+    if (!response.ok) return null;
+    return response.arrayBuffer();
+  } catch {
+    return null;
   }
 }
 
@@ -48,11 +70,9 @@ async function getDownloadInfo(token: string, trackId: number): Promise<{ direct
   const url = `https://api.music.yandex.net/tracks/${trackId}/download-info?can_use_streaming=true&ts=${timestamp}`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `OAuth ${token}`,
-        'X-Yandex-Music-Client': 'YandexMusicAndroid/24022571',
-      },
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl, {
+      headers: { 'Authorization': `OAuth ${token}` }
     });
 
     if (!response.ok) return null;
@@ -73,7 +93,7 @@ async function getDownloadInfo(token: string, trackId: number): Promise<{ direct
 
 async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string } | null> {
   try {
-    const response = await fetch(xmlUrl);
+    const response = await fetch(`/api/proxy?url=${encodeURIComponent(xmlUrl)}`);
     const xml = await response.text();
 
     const hostMatch = xml.match(/<host>([^<]+)<\/host>/);
@@ -88,16 +108,26 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
     const ts = tsMatch[1];
     const s = sMatch[1];
 
-    const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
     const pathWithoutSlash = path.substring(1);
-    const crypto = await import('crypto');
-    const encoder = new TextEncoder();
-    const data = encoder.encode(MD5_SALT + pathWithoutSlash + s);
-    const hash = crypto.createHash('md5').update(data).digest('hex');
+    const hash = md5(MD5_SALT + pathWithoutSlash + s);
     const directUrl = `https://${host}/get-mp3/${hash}/${ts}${path}`;
 
     return { directUrl };
   } catch {
     return null;
   }
+}
+
+function md5(str: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  return crypto.createHash('md5').update(data).digest('hex');
+}
+
+function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*]/g, '')
+    .replace(/[\x00-\x1f]/g, '')
+    .trim()
+    .substring(0, 100) || 'unknown';
 }
