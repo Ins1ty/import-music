@@ -49,16 +49,13 @@ export default function Home() {
       }
 
       const playlistUuid = playlistIdMatch[1]
-      const apiUrl = encodeURIComponent(`https://api.music.yandex.net/playlist/${playlistUuid}`)
+      const apiUrl = `/api/proxy?url=${encodeURIComponent(`https://api.music.yandex.net/playlist/${playlistUuid}`)}`
 
-      const userResponse = await fetch(
-        `http://localhost:8000/api/proxy?url=${apiUrl}`,
-        {
-          headers: {
-            'Authorization': `OAuth ${token}`,
-          }
+      const userResponse = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `OAuth ${token}`,
         }
-      )
+      })
 
       if (!userResponse.ok) {
         const errData = await userResponse.json().catch(() => ({}))
@@ -120,12 +117,12 @@ export default function Home() {
         setTracks(foundTracks, playlistTitle)
       }
     } catch (err) {
-      setError('Failed to fetch playlist. Make sure Laravel backend is running on port 8000.')
+      setError('Failed to fetch playlist. Check console for details.')
     }
     setLoading(false)
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (selectedTracks.size === 0) {
       setError('Please select at least one track to download')
       return
@@ -134,38 +131,38 @@ export default function Home() {
     setDownloading(true)
     setError(null)
 
-    const selectedTracksArray = tracks.filter((_, index) => selectedTracks.has(index))
+    try {
+      const selectedTracksArray = tracks.filter((_, index) => selectedTracks.has(index))
 
-    const form = document.createElement('form')
-    form.method = 'POST'
-    form.action = 'http://localhost:8000/api/download-selected'
-    form.style.display = 'none'
+      const response = await fetch('/api/download-selected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          tracks: selectedTracksArray,
+          playlistTitle,
+        }),
+      })
 
-    const tokenInput = document.createElement('input')
-    tokenInput.type = 'hidden'
-    tokenInput.name = 'token'
-    tokenInput.value = token
-    form.appendChild(tokenInput)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Download failed')
+      }
 
-    const tracksInput = document.createElement('input')
-    tracksInput.type = 'hidden'
-    tracksInput.name = 'tracks'
-    tracksInput.value = JSON.stringify(selectedTracksArray)
-    form.appendChild(tracksInput)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${playlistTitle || 'playlist'}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Download failed')
+    }
 
-    const titleInput = document.createElement('input')
-    titleInput.type = 'hidden'
-    titleInput.name = 'playlistTitle'
-    titleInput.value = playlistTitle
-    form.appendChild(titleInput)
-
-    document.body.appendChild(form)
-    form.submit()
-    
-    setTimeout(() => {
-      document.body.removeChild(form)
-      setDownloading(false)
-    }, 30000)
+    setDownloading(false)
   }
 
   const handleClear = () => {
