@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
-
-const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,12 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Playlist is empty' }, { status: 400 });
     }
 
-    const { default: JSZip } = await import('jszip');
-    const zip = new JSZip();
-    
-    const trackCount = tracks.length;
-    const safeTitle = sanitizeFileName(playlistTitle);
-    const zipFileName = `${safeTitle}.zip`;
+    const downloadUrls: Array<{ url: string; filename: string }> = [];
 
     for (let idx = 0; idx < tracks.length; idx++) {
       const trackRef = tracks[idx];
@@ -50,28 +42,26 @@ export async function POST(request: NextRequest) {
       if (!track) continue;
 
       const trackId = track.id;
-      const audioData = await downloadTrack(token, trackId);
-      
-      if (audioData && audioData.byteLength > 0) {
-        const title = track.title || 'Unknown';
-        const artists = extractArtists(track.artists || []);
-        const fileName = `${String(idx + 1).padStart(2, '0')} - ${artists} - ${title}.mp3`;
-        zip.file(fileName, audioData);
-      }
+      const downloadInfo = await getDownloadInfo(token, trackId);
+      if (!downloadInfo) continue;
+
+      const title = track.title || 'Unknown';
+      const artists = extractArtists(track.artists || []);
+      const filename = `${String(idx + 1).padStart(2, '0')} - ${artists} - ${title}.mp3`;
+
+      downloadUrls.push({
+        url: downloadInfo.directUrl,
+        filename
+      });
     }
 
-    const zipBase64 = await zip.generateAsync({
-      type: 'base64',
-      compression: 'DEFLATE'
-    });
-
     return NextResponse.json({
-      zip: zipBase64,
-      filename: zipFileName
+      downloads: downloadUrls,
+      playlistTitle
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Download error' },
+      { error: error instanceof Error ? error.message : 'Error' },
       { status: 500 }
     );
   }
@@ -80,25 +70,6 @@ export async function POST(request: NextRequest) {
 function extractArtists(artists: Array<{ name: string }>): string {
   if (!artists.length) return 'Unknown';
   return artists.map(a => a.name).filter(Boolean).join(', ') || 'Unknown';
-}
-
-async function downloadTrack(token: string, trackId: number): Promise<ArrayBuffer | null> {
-  try {
-    const downloadInfo = await getDownloadInfo(token, trackId);
-    if (!downloadInfo) return null;
-
-    const response = await fetch(downloadInfo.directUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://music.yandex.ru/',
-      },
-    });
-
-    if (!response.ok) return null;
-    return response.arrayBuffer();
-  } catch {
-    return null;
-  }
 }
 
 async function getDownloadInfo(token: string, trackId: number): Promise<{ directUrl: string } | null> {
@@ -146,26 +117,16 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
     const ts = tsMatch[1];
     const s = sMatch[1];
 
+    const MD5_SALT = 'XGRlBW9FXlekgbPrRHuSiA';
     const pathWithoutSlash = path.substring(1);
-    const hash = md5(MD5_SALT + pathWithoutSlash + s);
+    const crypto = await import('crypto');
+    const encoder = new TextEncoder();
+    const data = encoder.encode(MD5_SALT + pathWithoutSlash + s);
+    const hash = crypto.createHash('md5').update(data).digest('hex');
     const directUrl = `https://${host}/get-mp3/${hash}/${ts}${path}`;
 
     return { directUrl };
   } catch {
     return null;
   }
-}
-
-function md5(str: string): string {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(str);
-  return crypto.createHash('md5').update(data).digest('hex');
-}
-
-function sanitizeFileName(name: string): string {
-  return name
-    .replace(/[<>:"/\\|?*]/g, '')
-    .replace(/[\x00-\x1f]/g, '')
-    .trim()
-    .substring(0, 100) || 'unknown';
 }
