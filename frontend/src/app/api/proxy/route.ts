@@ -7,32 +7,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL is required' }, { status: 400 });
   }
 
-  if (!url.startsWith('https://api.music.yandex.net')) {
-    return NextResponse.json({ error: 'Only Yandex Music API requests are allowed' }, { status: 403 });
+  const allowedHosts = ['api.music.yandex.net', 'storage.mds.yandex.net'];
+  const parsedUrl = new URL(url);
+  
+  if (!allowedHosts.includes(parsedUrl.hostname)) {
+    return NextResponse.json({ error: 'Host not allowed' }, { status: 403 });
   }
 
   try {
-    const authHeader = request.headers.get('Authorization');
-    const headers: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    };
-    
-    if (authHeader) {
-      headers['Authorization'] = authHeader;
-    }
-
     const response = await fetch(url, {
-      headers,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://music.yandex.ru/',
+      },
       cache: 'no-store',
     });
 
-    const data = await response.text();
+    const data = await response.arrayBuffer();
     
     return new NextResponse(data, {
       status: response.status,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
