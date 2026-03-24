@@ -158,15 +158,16 @@ async function getDirectUrlFromInfo(xmlUrl: string): Promise<{ directUrl: string
 }
 
 function md5(str: string): string {
-  return crypto.createHash('md5').update(Buffer.from(str, 'utf-8')).digest('hex');
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hash = crypto.createHash('md5').update(data).digest('hex');
+  return hash;
 }
 
 function sanitizeFileName(name: string): string {
-  const result = name
-    .replace(/[^\x00-\x7F]/g, '_')
+  return name
     .replace(/[<>:"/\\|?*]/g, '')
     .replace(/[\x00-\x1f]/g, '')
     .trim()
-    .substring(0, 100);
-  return result || 'unknown';
+    .substring(0, 100) || 'unknown';
 }
